@@ -9,7 +9,11 @@ const questions = [
   "I prioritize team harmony and emotional intelligence in the workplace.",
   "I enjoy working with data, charts, and quantitative metrics.",
   "I am highly persuasive and enjoy negotiating or selling ideas.",
-  "I thrive in fast-paced, rapidly changing environments."
+  "I thrive in fast-paced, rapidly changing environments.",
+  "I am deeply motivated by how my work impacts the well-being of individuals.",
+  "I find beauty in structured sets of rules, systems, and frameworks.",
+  "I enjoy the adrenaline of high-stakes negotiation and deal-making.",
+  "I am most productive when leading a team through a crisis or deadline."
 ];
 
 export const Assessment: React.FC = () => {
@@ -61,38 +65,47 @@ Be diverse and accurate based ONLY on the provided answers.`;
 
   const calculateLocalFallback = () => {
     const scores = {
-      analytical: (answers[0] || 3) + (answers[5] || 3),  // Logical + Data
-      leadership: (answers[1] || 3) + (answers[3] || 3),  // Decisions + Comms
-      growth: (answers[6] || 3) + (answers[7] || 3),      // Persuasion + Fast-paced
-      creative: (answers[4] || 3) + (answers[2] || 3),    // Harmony + Process (Organization)
+      analytical: ((answers[0] || 3) + (answers[5] || 3) + (answers[9] || 3)) / 3 + (Math.random() * 0.01),
+      leadership: ((answers[1] || 3) + (answers[3] || 3) + (answers[11] || 3)) / 3 + (Math.random() * 0.01),
+      growth: ((answers[6] || 3) + (answers[7] || 3) + (answers[10] || 3)) / 3 + (Math.random() * 0.01),
+      operational: ((answers[2] || 3) + (answers[9] || 3) + (answers[4] || 3)) / 3 + (Math.random() * 0.01),
+      creative: ((answers[8] || 3) + (answers[0] || 3) + (answers[4] || 3)) / 3 + (Math.random() * 0.01),
     };
 
-    const maxEntry = Object.entries(scores).reduce((a, b) => a[1] > b[1] ? a : b);
+    const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    const topCategory = sorted[0][0];
     
-    switch(maxEntry[0]) {
+    switch(topCategory) {
       case 'analytical':
         return {
           personality: "The Analytical Architect",
           description: "You excel at breaking down complex problems into logical components. Your strength lies in data-driven decision making and systems thinking.",
-          careerChoice: "Software Engineering"
+          careerChoice: "Computer Science & Engineering"
         };
       case 'leadership':
         return {
-          personality: "The Strategic Lead",
+          personality: "The Strategic Visionary",
           description: "A natural decision-maker who excels at bridge-building between teams. you thrive in high-stakes environments that require clear vision.",
-          careerChoice: "Product Management"
+          careerChoice: "Product Management/Leadership"
         };
       case 'growth':
         return {
           personality: "The Dynamic Growth Hacker",
           description: "You are energized by fast-paced change and the art of persuasion. You excel at identifying opportunities and executing rapidly.",
-          careerChoice: "Growth Marketing"
+          careerChoice: "Marketing & Business Development"
         };
+      case 'creative':
+        return {
+          personality: "The Innovative Problem Solver",
+          description: "You blend logical rigor with deep empathy. You enjoy creating solutions that are both technically sound and deeply human-centric.",
+          careerChoice: "UX Design & Creative Strategy"
+        };
+      case 'operational':
       default:
         return {
-          personality: "The Harmonious Planner",
+          personality: "The Operational Excellence Expert",
           description: "You prioritize organizational health and clear processes. Your superpower is creating structured environments where teams can thrive.",
-          careerChoice: "Operations Management"
+          careerChoice: "Operations & Supply Chain"
         };
     }
   };

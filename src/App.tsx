@@ -12,6 +12,39 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('Overview');
   const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('theme') as 'dark' | 'light') || 'dark');
 
+  const tabToSlug = (key: TabKey) => key.toLowerCase().replace(/\s+/g, '-');
+  const slugToTab = (slug: string): TabKey | null => {
+    const map: Record<string, TabKey> = {
+      'overview': 'Overview',
+      'assessment': 'Assessment',
+      'career-exploration': 'Career Exploration',
+      'skills-training': 'Skills Training',
+      'interview-prep': 'Interview Prep'
+    };
+    return map[slug] || null;
+  };
+
+  React.useEffect(() => {
+    const handleHashChange = () => {
+      const parts = window.location.hash.slice(2).split('/');
+      const mainTab = slugToTab(parts[0]);
+      if (mainTab) setActiveTab(mainTab);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange(); // Initial load
+
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  React.useEffect(() => {
+    const slug = tabToSlug(activeTab);
+    const currentHashParts = window.location.hash.slice(2).split('/');
+    if (currentHashParts[0] !== slug) {
+       window.location.hash = `#/${slug}`;
+    }
+  }, [activeTab]);
+
   React.useEffect(() => {
     document.documentElement.className = theme;
     localStorage.setItem('theme', theme);

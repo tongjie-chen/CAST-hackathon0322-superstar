@@ -1,4 +1,4 @@
-export type ActivityType = 'assessment' | 'interview' | 'roadmap' | 'simulator' | 'exploration' | 'coverletter' | 'salary';
+export type ActivityType = 'assessment' | 'interview' | 'roadmap' | 'simulator' | 'exploration' | 'coverletter' | 'salary' | 'resume';
 
 export interface Activity {
   id: string;

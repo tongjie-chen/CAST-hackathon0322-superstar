@@ -6,11 +6,38 @@ type TrainingMode = 'Internship' | 'Career Switch' | 'Senior Progression' | null
 type Assignment = { title: string; jd: string; brief: string; timeline: string };
 type ViewTab = 'Timeline' | 'Simulator' | 'Todo';
 type Phase = { month: string, title: string, tasks: string[], topics: string[] };
-type Todo = { id: string; text: string; completed: boolean; source?: string };
+type Todo = { id: string; text: string; completed: boolean; source?: string; timeline?: string };
 
 export const SkillsTraining: React.FC = () => {
   const [career] = useState(localStorage.getItem('specificCareer') || localStorage.getItem('careerChoice'));
-  const [activeTab, setActiveTab] = useState<ViewTab>('Timeline');
+  const [activeTab, setActiveTab] = useState<ViewTab>(() => {
+    const hashPart = window.location.hash.slice(2).split('/')[1];
+    if (hashPart === 'roadmap') return 'Timeline';
+    if (hashPart === 'simulator') return 'Simulator';
+    if (hashPart === 'todo') return 'Todo';
+    return 'Timeline';
+  });
+
+  useEffect(() => {
+    const handleHash = () => {
+      const parts = window.location.hash.slice(2).split('/');
+      if (parts[0] === 'skills-training' && parts[1]) {
+        if (parts[1] === 'roadmap') setActiveTab('Timeline');
+        else if (parts[1] === 'simulator') setActiveTab('Simulator');
+        else if (parts[1] === 'todo') setActiveTab('Todo');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  useEffect(() => {
+    const slug = activeTab === 'Timeline' ? 'roadmap' : activeTab === 'Simulator' ? 'simulator' : 'todo';
+    const currentParts = window.location.hash.slice(2).split('/');
+    if (currentParts[0] === 'skills-training' && currentParts[1] !== slug) {
+      window.location.hash = `#/skills-training/${slug}`;
+    }
+  }, [activeTab]);
 
   const [phases, setPhases] = useState<Phase[]>([]);
   const [loadingPhases, setLoadingPhases] = useState(false);
@@ -96,7 +123,11 @@ export const SkillsTraining: React.FC = () => {
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
       };
 
-      const response = await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`, { method: 'POST', body: JSON.stringify(payload) });
+      const response = await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload) 
+      });
       const data = await response.json();
       let text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
       text = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -121,11 +152,25 @@ export const SkillsTraining: React.FC = () => {
        const apiKey = import.meta.env.VITE_VERTEX_AI_API_KEY;
        const payload = {
         systemInstruction: { parts: [{ text: "You are a strict hiring manager evaluating a Candidate's assignment submission. Give actionable, constructive formatting using Markdown. Be brief, specific, and rate it out of 10." }] },
-        contents: [{ role: 'user', parts: [{ text: `Evaluate this submission for the task [${assignment?.brief}]: "${submission}"` }] }]
+        contents: [{ role: 'user', parts: [{ text: `Evaluate this career-defining submission for a ${career} (${mode}) role. 
+          The task was: ${assignment?.brief}.
+          Candidate Submission: "${submission}"
+          
+          Provide a highly critical, professional review. 
+          Use exactly these sections:
+          ## 🎯 Strategic Impact
+          ## 💡 Technical Refinement
+          ## 🚀 Hiring Manager's Verdict (Score X/10)
+          
+          Use clinical, corporate language.` }] }]
       };
-      const response = await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`, { method: 'POST', body: JSON.stringify(payload) });
+      const response = await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload) 
+      });
       const data = await response.json();
-      const fb = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Your submission was marked as reviewed.";
+      const fb = data?.candidates?.[0]?.content?.parts?.[0]?.text || "The AI evaluator reviewed your submission but did not provide a detailed text response. Please try reframing your answer.";
       setFeedback(fb);
       logActivity({ type: 'simulator', title: 'Simulator Task Reviewed', desc: `Hiring Manager feedback received for ${assignment?.title}.` });
     } catch(err) {
@@ -157,10 +202,20 @@ export const SkillsTraining: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const addTodo = (text: string, source?: string) => {
+  const addTodo = (text: string, timeline?: string) => {
     if (todos.some(t => t.text === text)) return; // Prevent duplicates
-    const newTodo: Todo = { id: Math.random().toString(36).substr(2, 9), text, completed: false, source };
+    const newTodo: Todo = { id: Math.random().toString(36).substr(2, 9), text, completed: false, timeline };
     setTodos(prev => [newTodo, ...prev]);
+  };
+
+  const exportTodos = () => {
+    const header = `# Learning Curriculum Tasks - ${career}\n\n`;
+    const body = todos.map(t => `${t.completed ? '[x]' : '[ ]'} ${t.text}${t.timeline ? ` (${t.timeline})` : ''}`).join('\n');
+    const blob = new Blob([header + body], { type: 'text/markdown' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `curriculum_tasks_${new Date().toISOString().split('T')[0]}.md`;
+    link.click();
   };
 
   const toggleTodo = (id: string) => {
@@ -194,7 +249,7 @@ export const SkillsTraining: React.FC = () => {
                 borderBottom: activeTab === tab ? '2px solid var(--accent-color)' : '2px solid transparent', transition: 'var(--transition-fast)'
               }}
             >
-              {tab === 'Timeline' ? 'Roadmap Timeline' : tab === 'Simulator' ? 'Project Simulator' : 'Daily Todo List'}
+              {tab === 'Timeline' ? 'Roadmap Timeline' : tab === 'Simulator' ? 'Project Simulator' : 'Learning Tasks'}
             </button>
           ))}
         </div>
@@ -215,7 +270,8 @@ export const SkillsTraining: React.FC = () => {
                <p className="text-muted animate-pulse">Vertex AI is building a robust 3-month roadmap for {career}...</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '800px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '3rem', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               {phases.map((phase, i) => (
                 <div key={i} style={{ padding: '2rem', background: 'var(--chat-ai-bg)', borderLeft: '4px solid', borderLeftColor: i === 0 ? '#6366f1' : i === 1 ? '#10b981' : '#f43f5e', borderRadius: '0 1rem 1rem 0' }}>
                   <h3 className="heading text-gradient" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>{phase.month}: {phase.title}</h3>
@@ -249,6 +305,28 @@ export const SkillsTraining: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            <aside style={{ position: 'sticky', top: '0', background: 'var(--chat-ai-bg)', padding: '2rem', borderRadius: '1.5rem', border: '1px solid var(--panel-border)' }}>
+              <h3 className="heading" style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>🎯</span> Master Skill Inventory
+              </h3>
+              <p className="text-muted" style={{ marginBottom: '1.5rem', fontSize: '0.875rem' }}>Core competencies you'll acquire over the next 90 days as a <strong>{career}</strong>.</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {Array.from(new Set(phases.flatMap(p => p.topics))).map((skill, idx) => (
+                  <div key={idx} style={{ padding: '1rem', background: 'var(--input-bg)', borderRadius: '0.75rem', border: '1px solid var(--panel-border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-color)' }} />
+                    <span style={{ fontSize: '0.9375rem', fontWeight: 500 }}>{skill}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '1rem', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--accent-color)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Curriculum Strategy</p>
+                <p style={{ fontSize: '0.8125rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>These skills are mapped to top-tier {career} roles at companies like Google, Meta, and Netflix.</p>
+              </div>
+            </aside>
+          </div>
           )}
         </div>
       )}
@@ -287,11 +365,14 @@ export const SkillsTraining: React.FC = () => {
               <p className="text-muted animate-pulse">Vertex AI is constructing a tailored {mode} assignment for {career}...</p>
             </div>
           ) : (
-            <div>
+            <div className="animate-fade-in">
               <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--panel-border)', paddingBottom: '1.5rem' }}>
                 <div>
                    <h1 className="heading" style={{ fontSize: '2rem' }}>{assignment?.title}</h1>
-                   <span style={{ display: 'inline-block', padding: '0.25rem 0.75rem', background: 'rgba(99, 102, 241, 0.2)', color: 'white', borderRadius: '1rem', fontSize: '0.875rem' }}>{mode} Track</span>
+                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                     <span style={{ display: 'inline-block', padding: '0.25rem 0.75rem', background: 'rgba(99, 102, 241, 0.2)', color: 'white', borderRadius: '1rem', fontSize: '0.875rem' }}>{mode} Track</span>
+                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '0.25rem 0.5rem', borderRadius: '0.5rem', border: '1px solid var(--panel-border)' }}>✨ Generated by Vertex AI Gemini</span>
+                   </div>
                 </div>
                 <button onClick={() => setMode(null)} style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--panel-border)', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer' }}>Change Track</button>
               </header>
@@ -299,38 +380,50 @@ export const SkillsTraining: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
                 <div>
                   <h3 className="heading" style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Position Overview</h3>
-                  <p style={{ lineHeight: 1.6 }}>{assignment?.jd}</p>
+                  <div className="markdown-body" style={{ fontSize: '0.9375rem', lineHeight: 1.6 }}><ReactMarkdown>{assignment?.jd || ''}</ReactMarkdown></div>
                 </div>
                 <div style={{ background: 'var(--chat-ai-bg)', padding: '1.5rem', borderRadius: '1rem', border: '1px dotted var(--accent-color)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                      <h3 className="heading" style={{ fontSize: '1.25rem', margin: 0, color: 'var(--accent-color)' }}>Your Assignment</h3>
                      <span style={{ fontSize: '0.875rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>⏱️ {assignment?.timeline || 'Take 60 minutes'}</span>
                   </div>
-                  <p style={{ lineHeight: 1.6 }}>{assignment?.brief}</p>
+                  <div className="markdown-body" style={{ fontSize: '0.9375rem', lineHeight: 1.6 }}>
+                    <ReactMarkdown>{assignment?.brief || ''}</ReactMarkdown>
+                  </div>
                 </div>
               </div>
 
-              {!feedback ? (
-                 <div className="animate-fade-in">
-                   <h3 className="heading" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Submit Your Work</h3>
-                   <textarea 
-                     value={submission} onChange={e => setSubmission(e.target.value)} placeholder="Draft your solution here..." 
-                     style={{ width: '100%', minHeight: '200px', padding: '1.5rem', borderRadius: '1rem', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--panel-border)', outline: 'none', resize: 'vertical', fontSize: '1rem', lineHeight: 1.6, fontFamily: 'inherit', marginBottom: '1rem' }}
-                   />
-                   <button 
-                     onClick={submitAssignment} disabled={!submission.trim() || loadingFeedback}
-                     style={{ background: 'var(--accent-gradient)', color: 'white', padding: '1rem 3rem', borderRadius: '2rem', border: 'none', fontWeight: 600, cursor: (!submission.trim() || loadingFeedback) ? 'not-allowed' : 'pointer', opacity: (!submission.trim() || loadingFeedback) ? 0.7 : 1 }}
-                   >
-                     {loadingFeedback ? 'Grader AI Constructing Feedback...' : 'Submit Assignment for Review'}
-                   </button>
-                 </div>
+              {loadingFeedback ? (
+                  <div style={{ textAlign: 'center', padding: '3rem', background: 'var(--chat-ai-bg)', borderRadius: '1.5rem', border: '1px solid var(--panel-border)' }}>
+                    <div className="animate-pulse">
+                      <h3 className="heading" style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>AI Grader is Analyzing...</h3>
+                      <p className="text-muted">Reviewing your strategic approach and quantifying impact...</p>
+                    </div>
+                  </div>
+              ) : !feedback ? (
+                  <div className="animate-fade-in">
+                    <h3 className="heading" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Submit Your Work</h3>
+                    <textarea 
+                      value={submission} onChange={e => setSubmission(e.target.value)} placeholder="Draft your solution here..." 
+                      style={{ width: '100%', minHeight: '200px', padding: '1.5rem', borderRadius: '1rem', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--panel-border)', outline: 'none', resize: 'vertical', fontSize: '1rem', lineHeight: 1.6, fontFamily: 'inherit', marginBottom: '1rem' }}
+                    />
+                    <button 
+                      onClick={submitAssignment} disabled={!submission.trim()}
+                      style={{ background: 'var(--accent-gradient)', color: 'white', padding: '1rem 3rem', borderRadius: '2rem', border: 'none', fontWeight: 600, cursor: !submission.trim() ? 'not-allowed' : 'pointer' }}
+                    >
+                      Submit Assignment for Review
+                    </button>
+                  </div>
               ) : (
-                <div className="animate-fade-in" style={{ padding: '2rem', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '1.5rem' }}>
-                  <h3 className="heading" style={{ fontSize: '1.5rem', marginBottom: '1.5rem', color: '#10b981' }}>Hiring Manager Feedback</h3>
+                <div className="animate-fade-in" style={{ padding: '2rem', background: 'var(--chat-ai-bg)', border: '1px solid #10b981', borderRadius: '1.5rem', boxShadow: '0 0 20px rgba(16, 185, 129, 0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                    <span style={{ fontSize: '1.5rem' }}>👨‍💼</span>
+                    <h3 className="heading" style={{ fontSize: '1.5rem', margin: 0, color: '#10b981' }}>Hiring Manager Feedback</h3>
+                  </div>
                   <div className="markdown-body" style={{ color: 'var(--text-primary)' }}>
                     <ReactMarkdown>{feedback}</ReactMarkdown>
                   </div>
-                  <button onClick={() => {setFeedback(null); setSubmission('');}} style={{ marginTop: '2rem', background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--panel-border)', padding: '0.75rem 2rem', borderRadius: '2rem', cursor: 'pointer' }}>Try Another Submission</button>
+                  <button onClick={() => {setFeedback(null); setSubmission('');}} style={{ marginTop: '2rem', background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--panel-border)', padding: '0.75rem 2rem', borderRadius: '2rem', cursor: 'pointer', fontWeight: 600 }}>Try Another Submission</button>
                 </div>
               )}
             </div>
@@ -341,53 +434,58 @@ export const SkillsTraining: React.FC = () => {
       {activeTab === 'Todo' && (
         <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <h2 className="heading" style={{ fontSize: '1.5rem' }}>Your Daily Objectives</h2>
-            <span className="text-muted">{todos.filter(t => t.completed).length} / {todos.length} Done</span>
+            <div>
+              <h2 className="heading" style={{ fontSize: '1.5rem', margin: 0 }}>Curriculum Task Manager</h2>
+              <p className="text-muted">{todos.filter(t => t.completed).length} / {todos.length} items achieved</p>
+            </div>
+            <button onClick={exportTodos} style={{ background: 'transparent', color: 'var(--accent-color)', border: '1px solid var(--accent-color)', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem' }}>Export as MD</button>
           </div>
 
           <div style={{ background: 'var(--chat-ai-bg)', borderRadius: '1.5rem', border: '1px solid var(--panel-border)', overflow: 'hidden' }}>
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--panel-border)', display: 'flex', gap: '1rem' }}>
+            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--panel-border)' }}>
               <input 
                 type="text" 
-                placeholder="Add a custom task..." 
-                style={{ flex: 1, background: 'var(--input-bg)', border: '1px solid var(--panel-border)', borderRadius: '0.75rem', padding: '0.75rem 1rem', color: 'var(--text-primary)', outline: 'none' }}
+                placeholder="Add a custom task item..."
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                    addTodo(e.currentTarget.value.trim(), 'User');
+                    addTodo(e.currentTarget.value.trim(), 'Custom');
                     e.currentTarget.value = '';
                   }
                 }}
+                style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--panel-border)', padding: '1rem 1.5rem', borderRadius: '1rem', color: 'var(--text-primary)', outline: 'none' }}
               />
             </div>
-
-            <div style={{ minHeight: '300px' }}>
-              {todos.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '4rem' }}>
-                  <p className="text-muted">Your list is clear! Add tasks from the Roadmap or create your own.</p>
+            <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+              {todos.map(todo => (
+                <div key={todo.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--panel-border)', transition: 'var(--transition-fast)' }}>
+                  <input 
+                    type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} 
+                    style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--accent-color)' }} 
+                  />
+                  <div style={{ flex: 1 }}>
+                    <span style={{ textDecoration: todo.completed ? 'line-through' : 'none', color: todo.completed ? 'var(--text-secondary)' : 'var(--text-primary)', fontWeight: 500 }}>
+                      {todo.text}
+                    </span>
+                    {todo.timeline && (
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--accent-color)', marginTop: '0.25rem' }}>
+                        📅 {todo.timeline}
+                      </span>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => deleteTodo(todo.id)} 
+                    style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', opacity: 0.4 }}
+                    onMouseOver={e => e.currentTarget.style.opacity = '1'}
+                    onMouseOut={e => e.currentTarget.style.opacity = '0.4'}
+                  >
+                    🗑️
+                  </button>
                 </div>
-              ) : (
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {todos.map((todo) => (
-                    <li key={todo.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.5rem', borderBottom: '1px solid var(--panel-border)', transition: 'var(--transition-fast)' }}>
-                      <input 
-                        type="checkbox" 
-                        checked={todo.completed} 
-                        onChange={() => toggleTodo(todo.id)}
-                        style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--accent-color)' }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <span style={{ textDecoration: todo.completed ? 'line-through' : 'none', color: todo.completed ? 'var(--text-secondary)' : 'var(--text-primary)', fontWeight: 500, fontSize: '1.125rem' }}>{todo.text}</span>
-                        {todo.source && <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--accent-color)', opacity: 0.7 }}>{todo.source}</span>}
-                      </div>
-                      <button 
-                        onClick={() => deleteTodo(todo.id)}
-                        style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', opacity: 0.4 }}
-                        onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
-                        onMouseOut={(e) => e.currentTarget.style.opacity = '0.4'}
-                      >🗑️</button>
-                    </li>
-                  ))}
-                </ul>
+              ))}
+              {todos.length === 0 && (
+                <p className="text-muted" style={{ textAlign: 'center', padding: '3rem' }}>
+                  No tasks assigned. Visit the Roadmap to populate your curriculum.
+                </p>
               )}
             </div>
           </div>

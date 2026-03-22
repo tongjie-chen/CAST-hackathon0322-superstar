@@ -8,10 +8,24 @@ interface OverviewProps {
 
 export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
   const [activities, setActivities] = useState<Activity[]>([]);
-  const career = localStorage.getItem('specificCareer') || localStorage.getItem('careerChoice') || '';
+  const [isEditingCareer, setIsEditingCareer] = useState(false);
+  const [career, setCareer] = useState(localStorage.getItem('specificCareer') || localStorage.getItem('careerChoice') || '');
+  const [editValue, setEditValue] = useState(career);
+
 
   const refreshData = () => {
     setActivities(getActivities());
+  };
+
+  const getTodoProgress = () => {
+    try {
+      const todos = JSON.parse(localStorage.getItem('userTodos') || '[]');
+      if (todos.length === 0) return 0;
+      const completed = todos.filter((t: any) => t.completed).length;
+      return (completed / todos.length) * 100;
+    } catch {
+      return 0;
+    }
   };
 
   useEffect(() => {
@@ -25,17 +39,67 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
   }, []);
 
   const uniqueTypes = new Set(activities.map(a => a.type));
-  const skillMastery = Math.min(100, (uniqueTypes.size * 20) + (activities.length > 5 ? 15 : 0));
+  const hasAssessment = !!localStorage.getItem('careerChoice');
+  const todoProgress = getTodoProgress();
+  
+  // Dynamic Calculation: 20% Assessment, 40% Diversity (typology), 40% Persistence (todos/volume)
+  const masterRatio = Math.min(1, (hasAssessment ? 0.2 : 0) + (uniqueTypes.size / 8 * 0.4) + (todoProgress / 100 * 0.4));
+  const skillMastery = Math.round(masterRatio * 100);
+  
   const completedTasks = activities.length;
-  const interviewReadiness = activities.some(a => a.type === 'interview' || a.type === 'simulator') ? 75 : 45;
+  const interviewReadiness = Math.min(100, (activities.filter(a => a.type === 'interview' || a.type === 'simulator').length * 15) + (hasAssessment ? 15 : 0) + 10);
+
+
+  const handleCareerSave = () => {
+    if (!editValue.trim()) return;
+    localStorage.setItem('careerChoice', editValue.trim());
+    localStorage.setItem('specificCareer', editValue.trim());
+    setCareer(editValue.trim());
+    setIsEditingCareer(false);
+    window.dispatchEvent(new Event('storage'));
+  };
 
   return (
     <main className="glass-panel right-panel animate-fade-in" style={{ animationDelay: '0.2s' }}>
       <div style={{ padding: '2.5rem', flex: 1, overflowY: 'auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '3rem' }}>
-          <div>
-            <h1 className="heading" style={{ fontSize: '2.5rem', letterSpacing: '-0.03em' }}>{career ? `Your ${career} Journey.` : 'Your Career Journey.'}</h1>
-            <p className="text-muted" style={{ fontSize: '1.125rem' }}>{career ? `Master the skills to become an elite ${career}.` : 'Bridge the gap between uncertainty and job readiness.'}</p>
+          <div style={{ flex: 1 }}>
+            {isEditingCareer ? (
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+                <input 
+                  value={editValue} 
+                  onChange={e => setEditValue(e.target.value)}
+                  placeholder="Enter your target career..."
+                  className="animate-fade-in"
+                  style={{ 
+                    fontSize: '2.5rem', fontWeight: 700, background: 'var(--input-bg)', border: '1px solid var(--accent-color)', 
+                    color: 'var(--text-primary)', borderRadius: '0.75rem', padding: '0.5rem 1rem', width: '100%', outline: 'none' 
+                  }}
+                  onKeyDown={e => e.key === 'Enter' && handleCareerSave()}
+                  autoFocus
+                />
+                <button onClick={handleCareerSave} style={{ background: '#10b981', color: 'white', border: 'none', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>Save</button>
+                <button onClick={() => setIsEditingCareer(false)} style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--panel-border)', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
+                  <h1 className="heading" style={{ fontSize: '2.5rem', letterSpacing: '-0.03em', margin: 0 }}>
+                    {career ? `Your ${career} Journey.` : 'Your Career Journey.'}
+                  </h1>
+                  <button 
+                    onClick={() => { setIsEditingCareer(true); setEditValue(career); }}
+                    title="Edit Career Goal"
+                    style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1.25rem', opacity: 0.5, transition: 'var(--transition-fast)' }}
+                    onMouseOver={e => e.currentTarget.style.opacity = '1'}
+                    onMouseOut={e => e.currentTarget.style.opacity = '0.5'}
+                  >
+                    ✏️
+                  </button>
+                </div>
+                <p className="text-muted" style={{ fontSize: '1.125rem' }}>{career ? `Master the skills to become an elite ${career}.` : 'Bridge the gap between uncertainty and job readiness.'}</p>
+              </>
+            )}
           </div>
           <button style={{
             background: 'var(--accent-gradient)',
@@ -73,11 +137,13 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
           marginBottom: '3rem'
         }}>
           {[
-            { title: 'Skill Mastery', value: `${skillMastery}%`, trend: uniqueTypes.size > 0 ? `+${uniqueTypes.size} items` : 'Start now', color: '#10b981' },
-            { title: 'Completed Tasks', value: completedTasks.toString(), trend: `Active session`, color: '#6366f1' },
-            { title: 'Interview Readiness', value: `${interviewReadiness}%`, trend: interviewReadiness > 50 ? 'Improving' : 'Baseline', color: '#f59e0b' }
+            { title: 'Skill Mastery', value: `${skillMastery}%`, trend: uniqueTypes.size > 0 ? `+${uniqueTypes.size} types` : 'Start now', color: '#10b981', target: 'Skills Training' },
+            { title: 'Completed Tasks', value: completedTasks.toString(), trend: `Active session`, color: '#6366f1', target: 'Skills Training' },
+            { title: 'Interview Readiness', value: `${interviewReadiness}%`, trend: interviewReadiness > 50 ? 'Improving' : 'Baseline', color: '#f59e0b', target: 'Interview Prep' }
           ].map((stat, idx) => (
-            <div key={idx} style={{
+            <div key={idx} 
+            onClick={() => onNavigate(stat.target)}
+            style={{
               background: 'var(--chat-ai-bg)',
               border: '1px solid var(--panel-border)',
               borderRadius: '1.25rem',
@@ -130,7 +196,7 @@ export const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
               onMouseOut={(e) => e.currentTarget.style.background = 'var(--chat-ai-bg)'}
               >
                 <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--panel-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
-                  {item.type === 'assessment' ? '📋' : item.type === 'interview' ? '🎙️' : item.type === 'roadmap' ? '🗺️' : item.type === 'simulator' ? '💻' : '🔍'}
+                  {item.type === 'assessment' ? '📋' : item.type === 'interview' ? '🎙️' : item.type === 'roadmap' ? '🗺️' : item.type === 'simulator' ? '💻' : item.type === 'resume' ? '📄' : '🔍'}
                 </div>
                 <div style={{ flex: 1 }}>
                   <h4 style={{ margin: 0, fontWeight: 500, color: 'var(--text-primary)' }}>{item.title}</h4>
