@@ -151,7 +151,7 @@ export const CareerExploration: React.FC = () => {
         </button>
       </header>
       
-      <div style={{ background: 'rgba(0,0,0,0.2)', padding: '2rem', borderRadius: '1.25rem', border: '1px solid var(--panel-border)', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="chat-container-refined" style={{ padding: '2rem', borderRadius: '1.25rem', border: '1px solid var(--panel-border)', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ flex: 1, overflowY: 'auto', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', paddingRight: '1rem' }}>
           
           {loadingOptions && !specificCareer && (

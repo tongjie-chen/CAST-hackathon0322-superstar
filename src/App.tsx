@@ -65,10 +65,7 @@ const App: React.FC = () => {
 
   return (
     <div className="app-container">
-      <button className="theme-toggle" onClick={toggleTheme}>
-        {theme === 'dark' ? '☀️' : '🌙'}
-      </button>
-      <LeftPanel activeTab={activeTab} onNavigate={setActiveTab} />
+      <LeftPanel activeTab={activeTab} onNavigate={setActiveTab} theme={theme} onToggleTheme={toggleTheme} />
       {renderContent()}
     </div>
   );

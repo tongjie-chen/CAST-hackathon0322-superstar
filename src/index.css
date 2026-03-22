@@ -168,32 +168,26 @@ h3.heading { font-size: 1.125rem; font-weight: 600; }
   }
 }
 
-.theme-toggle {
-  position: fixed;
-  top: 2rem;
-  right: 2rem;
-  z-index: 100;
-  background: var(--panel-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--panel-border);
-  color: var(--text-primary);
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: var(--shadow-md);
-  transition: var(--transition-fast);
-  font-size: 1.25rem;
+/* Chat Container Refined */
+.chat-container-refined {
+  background: var(--chat-ai-bg);
+  transition: var(--transition-normal);
+  position: relative;
+  overflow: hidden;
 }
 
-.theme-toggle:hover {
-  transform: scale(1.1);
-  border-color: var(--accent-color);
+.light .chat-container-refined {
+  background: white;
+  background-image: radial-gradient(rgba(99, 102, 241, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: 0 0;
 }
+
+/* Remove old fixed toggle */
+.theme-toggle {
+  display: none;
+}
+
 
 /* Markdown Support */
 .markdown-body {
