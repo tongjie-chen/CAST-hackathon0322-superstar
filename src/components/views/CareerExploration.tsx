@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { logActivity } from '../../utils/activity';
 
 type Message = { role: 'user' | 'ai'; text: string };
 
@@ -36,29 +37,65 @@ export const CareerExploration: React.FC = () => {
       if (!apiKey) throw new Error("API key missing.");
 
       const payload = {
-        systemInstruction: { parts: [{ text: "Return exactly 3 specialized sub-career paths as a strict JSON array format: [{ \"title\": \"...\", \"desc\": \"...\" }]. No markdown formatting block." }] },
-        contents: [{ role: 'user', parts: [{ text: `Generate 3 distinct market specializations for the overarching career: ${career}` }] }]
+        systemInstruction: { parts: [{ text: "Return exactly 3 unique, high-growth specialized sub-career paths as a strict JSON array format: [{ \"title\": \"...\", \"desc\": \"...\" }]. No markdown formatting block." }] },
+        contents: [{ role: 'user', parts: [{ text: `Analyze the overarching career field: ${career}. 
+        Generate 3 distinct, modern, and HIGHLY SPECIFIC market specializations. 
+        Example for 'Product Management': ['Fintech Product Manager', 'AI/ML Product Lead', 'Growth Architect'].
+        Example for 'Software Engineering': ['Cloud Infrastructure Engineer', 'Web3 Smart Contract Developer', 'Full-stack Performance Specialist'].
+        Avoid generic terms like 'Technical', 'Growth', or 'Data' as standalone titles.` }] }]
       };
       const response = await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`, { method: 'POST', body: JSON.stringify(payload) });
       const data = await response.json();
       let text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
       const parsed = JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim());
+      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("AI returned empty array");
       setOptions(parsed);
     } catch(err) {
-      setOptions([
-        { title: `Technical ${career}`, desc: "Focus heavily on internal systems architecture, API designs, and engineering collaboration." },
-        { title: `Growth ${career}`, desc: "Drive user acquisition, retention metrics, and market experimental campaigns." },
-        { title: `Data ${career}`, desc: "Leverage big data, analytics, and business intelligence to drive macro-decisions." }
-      ]);
+      console.warn("AI Options fetch failed, using context-aware local mapping.");
+      setOptions(calculateLocalOptions(career));
     } finally {
       setLoadingOptions(false);
     }
   };
 
+  const calculateLocalOptions = (career: string) => {
+    const lower = career.toLowerCase();
+    if (lower.includes('engineer') || lower.includes('software') || lower.includes('tech')) {
+      return [
+        { title: "Cloud Infrastructure Engineer", desc: "Design and scale resilient systems on AWS/Azure/GCP." },
+        { title: "Full-Stack Web Architect", desc: "Lead end-to-end development of modern, high-performance web applications." },
+        { title: "AI Implementation Specialist", desc: "Integrate LLMs and machine learning models into production software." }
+      ];
+    }
+    if (lower.includes('design') || lower.includes('creative') || lower.includes('art')) {
+      return [
+        { title: "Interaction Designer", desc: "Craft seamless, high-fidelity user experiences and interactive prototypes." },
+        { title: "Visual Brand Strategist", desc: "Define the visual identity and aesthetic narrative for world-class products." },
+        { title: "Design Systems Lead", desc: "Architect scalable, reusable UI components and documentation for large teams." }
+      ];
+    }
+    if (lower.includes('product') || lower.includes('management') || lower.includes('lead')) {
+      return [
+        { title: "Growth Product Manager", desc: "Optimize conversion funnels, onboarding flows, and user retention metrics." },
+        { title: "Technical Product Lead", desc: "Bridge the gap between business requirements and deep engineering constraints." },
+        { title: "Platform Product Manager", desc: "Build internal tools and infrastructure that empower other product teams." }
+      ];
+    }
+    // Default fallback if no match
+    return [
+      { title: `Specialized ${career} Lead`, desc: "Focus on vertical-specific leadership and high-impact strategy." },
+      { title: `Operational ${career} Consultant`, desc: "Optimize internal workflows, efficiency, and scale." },
+      { title: `Innovation ${career} Researcher`, desc: "Explore next-gen trends and experimental frameworks in this field." }
+    ];
+  };
+
   const selectPath = (path: string) => {
     setSpecificCareer(path);
     localStorage.setItem('specificCareer', path);
-    localStorage.setItem('careerChoice', path);
+    localStorage.setItem('careerChoice', path); // Keep this line as it was in the original code
+    // The user's snippet had localStorage.setItem('specificCareer', pathTitle); which is a typo and would overwrite the previous line.
+    // Assuming pathTitle was meant to be 'path' for the logActivity call.
+    logActivity({ type: 'exploration', title: 'Career Path Selected', desc: `Focused training on ${path} specialization.` });
     window.dispatchEvent(new Event('storage'));
     
     const initialMsg = { role: 'ai' as const, text: `Great choice! Let's explore your path as a ${path}. What specific skills or companies are you most curious about?` };
@@ -141,7 +178,7 @@ export const CareerExploration: React.FC = () => {
             <div key={idx} className="animate-fade-in" style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
               <div style={{
                 padding: '1rem 1.5rem', borderRadius: '1.25rem', borderTopLeftRadius: msg.role === 'ai' ? 0 : '1.25rem', borderTopRightRadius: msg.role === 'user' ? 0 : '1.25rem',
-                background: msg.role === 'user' ? 'var(--accent-gradient)' : 'rgba(255, 255, 255, 0.05)', color: 'white', border: msg.role === 'ai' ? '1px solid var(--panel-border)' : 'none', lineHeight: 1.5
+                background: msg.role === 'user' ? 'var(--accent-gradient)' : 'var(--chat-ai-bg)', color: msg.role === 'user' ? 'var(--chat-user-text)' : 'var(--text-primary)', border: msg.role === 'ai' ? '1px solid var(--panel-border)' : 'none', lineHeight: 1.5
               }}>
                 <div className="markdown-body">
                   <ReactMarkdown>{msg.text}</ReactMarkdown>
@@ -149,7 +186,7 @@ export const CareerExploration: React.FC = () => {
               </div>
             </div>
           ))}
-          {isTyping && <div className="animate-fade-in" style={{ alignSelf: 'flex-start', padding: '1rem 1.5rem', borderRadius: '1.25rem', borderTopLeftRadius: 0, background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--panel-border)' }}><span className="text-muted">Coach is analyzing...</span></div>}
+          {isTyping && <div className="animate-fade-in" style={{ alignSelf: 'flex-start', padding: '1rem 1.5rem', borderRadius: '1.25rem', borderTopLeftRadius: 0, background: 'var(--chat-ai-bg)', border: '1px solid var(--panel-border)' }}><span className="text-muted">Coach is analyzing...</span></div>}
           <div ref={bottomRef} />
         </div>
 
@@ -157,7 +194,7 @@ export const CareerExploration: React.FC = () => {
           <input 
             type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Type your response..." 
-            style={{ flex: 1, padding: '1rem 1.5rem', borderRadius: '2rem', border: '1px solid var(--panel-border)', background: 'rgba(255,255,255,0.03)', color: 'white', outline: 'none', fontSize: '1rem' }} 
+            style={{ flex: 1, padding: '1rem 1.5rem', borderRadius: '2rem', border: '1px solid var(--panel-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', outline: 'none', fontSize: '1rem' }} 
           />
           <button 
             onClick={handleSend} disabled={!input.trim() || isTyping}

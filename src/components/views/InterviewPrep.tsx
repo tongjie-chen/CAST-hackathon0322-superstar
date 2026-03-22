@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { logActivity } from '../../utils/activity';
 
 type Message = { role: 'user' | 'ai'; text: string };
 type PrepTab = 'Mock Interview' | 'Resume AI' | 'Cover Letter Builder' | 'Salary Negotiation';
@@ -32,6 +33,9 @@ const MockInterviewChat: React.FC = () => {
   const handleSend = async () => {
     if (!input.trim()) return;
     const userMsg = input.trim();
+    if (messages.length === 1) {
+      logActivity({ type: 'interview', title: 'Mock Interview Started', desc: 'Engaged with AI coach for behavioral practice.' });
+    }
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setInput('');
     setIsTyping(true);
@@ -81,7 +85,7 @@ const MockInterviewChat: React.FC = () => {
           <div key={idx} className="animate-fade-in" style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
             <div style={{
               padding: '1rem 1.5rem', borderRadius: '1.25rem', borderTopLeftRadius: msg.role === 'ai' ? 0 : '1.25rem', borderTopRightRadius: msg.role === 'user' ? 0 : '1.25rem',
-              background: msg.role === 'user' ? 'var(--accent-gradient)' : 'rgba(255, 255, 255, 0.05)', color: 'white', border: msg.role === 'ai' ? '1px solid var(--panel-border)' : 'none', lineHeight: 1.5
+              background: msg.role === 'user' ? 'var(--accent-gradient)' : 'var(--chat-ai-bg)', color: msg.role === 'user' ? 'var(--chat-user-text)' : 'var(--text-primary)', border: msg.role === 'ai' ? '1px solid var(--panel-border)' : 'none', lineHeight: 1.5
             }}>
               <div className="markdown-body">
                   <ReactMarkdown>{msg.text}</ReactMarkdown>
@@ -89,11 +93,11 @@ const MockInterviewChat: React.FC = () => {
             </div>
           </div>
         ))}
-        {isTyping && <div className="animate-fade-in" style={{ alignSelf: 'flex-start', padding: '1rem 1.5rem', borderRadius: '1.25rem', borderTopLeftRadius: 0, background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--panel-border)' }}><span className="text-muted">Interviewer is typing...</span></div>}
+        {isTyping && <div className="animate-fade-in" style={{ alignSelf: 'flex-start', padding: '1rem 1.5rem', borderRadius: '1.25rem', borderTopLeftRadius: 0, background: 'var(--chat-ai-bg)', border: '1px solid var(--panel-border)' }}><span className="text-muted">Interviewer is typing...</span></div>}
         <div ref={bottomRef} />
       </div>
       <div style={{ display: 'flex', gap: '1rem', flexShrink: 0 }}>
-        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Type your answer..." style={{ flex: 1, padding: '1rem 1.5rem', borderRadius: '2rem', border: '1px solid var(--panel-border)', background: 'rgba(255,255,255,0.03)', color: 'white', outline: 'none' }} />
+        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Type your answer..." style={{ flex: 1, padding: '1rem 1.5rem', borderRadius: '2rem', border: '1px solid var(--panel-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', outline: 'none' }} />
         <button onClick={handleSend} disabled={!input.trim() || isTyping} style={{ padding: '0 2rem', borderRadius: '2rem', border: 'none', background: 'var(--accent-gradient)', color: 'white', cursor: (!input.trim() || isTyping) ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: (!input.trim() || isTyping) ? 0.7 : 1 }}>Send</button>
       </div>
     </div>
@@ -126,6 +130,7 @@ const CoverLetterBuilder: React.FC = () => {
       if (!response.ok) throw new Error(`API Error ${response.status}`);
       const data = await response.json();
       setDraft(data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.");
+      logActivity({ type: 'coverletter', title: 'Cover Letter Generated', desc: `Drafted role as ${role} at ${company}.` });
     } catch (error) {
       setDraft("Error connecting to AI. Please verify API key.");
     } finally {
@@ -136,8 +141,8 @@ const CoverLetterBuilder: React.FC = () => {
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%', minHeight: '500px' }}>
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-        <input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="Target Company Name" style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--panel-border)', background: 'rgba(255,255,255,0.03)', color: 'white' }} />
-        <input type="text" value={role} onChange={e => setRole(e.target.value)} placeholder="Target Role Title" style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--panel-border)', background: 'rgba(255,255,255,0.03)', color: 'white' }} />
+        <input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="Target Company Name" style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--panel-border)', background: 'var(--input-bg)', color: 'var(--text-primary)' }} />
+        <input type="text" value={role} onChange={e => setRole(e.target.value)} placeholder="Target Role Title" style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--panel-border)', background: 'var(--input-bg)', color: 'var(--text-primary)' }} />
         <button onClick={handleGenerate} disabled={isGenerating || !company.trim() || !role.trim()} style={{ padding: '0.75rem 2rem', borderRadius: '0.5rem', border: 'none', background: 'var(--accent-gradient)', color: 'white', cursor: (isGenerating || !company.trim() || !role.trim()) ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: isGenerating ? 0.7 : 1 }}>
           {isGenerating ? 'Generating...' : 'Generate Initial Draft'}
         </button>
@@ -146,7 +151,7 @@ const CoverLetterBuilder: React.FC = () => {
         value={draft}
         onChange={e => setDraft(e.target.value)}
         placeholder="Your generated cover letter will appear here..."
-        style={{ flex: 1, padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--panel-border)', background: 'rgba(255,255,255,0.05)', color: 'white', outline: 'none', resize: 'none', fontSize: '1rem', lineHeight: 1.6, fontFamily: 'inherit' }} 
+        style={{ flex: 1, padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--panel-border)', background: 'var(--input-bg)', color: 'var(--text-primary)', outline: 'none', resize: 'none', fontSize: '1rem', lineHeight: 1.6, fontFamily: 'inherit' }} 
       />
     </div>
   );
@@ -196,6 +201,7 @@ const SalaryNegotiation: React.FC = () => {
       const parsed = JSON.parse(text);
       if (Array.isArray(parsed)) {
         setMarketData(parsed);
+        logActivity({ type: 'salary', title: 'Salary Insight Pulled', desc: 'Consulted AI for market salary brackets.' });
       } else {
         throw new Error("Invalid format received");
       }
@@ -208,13 +214,13 @@ const SalaryNegotiation: React.FC = () => {
 
   return (
     <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '2rem' }}>
-      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '2rem', borderRadius: '1.5rem', border: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: 'var(--chat-ai-bg)', padding: '2rem', borderRadius: '1.5rem', border: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column' }}>
         <h3 className="heading text-gradient" style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Market Insights</h3>
         <p className="text-muted" style={{ marginBottom: '1.5rem' }}>Pull live market data for your target role metrics.</p>
         <button 
           onClick={fetchMarketData}
           disabled={!!loadingAction}
-          style={{ width: '100%', padding: '1rem', background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 600, cursor: !!loadingAction ? 'not-allowed' : 'pointer', marginBottom: '1rem' }}
+          style={{ width: '100%', padding: '1rem', background: 'var(--panel-border)', color: 'var(--text-primary)', border: 'none', borderRadius: '0.75rem', fontWeight: 600, cursor: !!loadingAction ? 'not-allowed' : 'pointer', marginBottom: '1rem' }}
         >
           {loadingAction === 'data' ? 'Pulling Data...' : 'Pull Live O*NET Data'}
         </button>
@@ -243,7 +249,7 @@ const SalaryNegotiation: React.FC = () => {
           {loadingAction === 'script' ? 'Generating Script...' : 'Build Counter-Offer Context'}
         </button>
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {script && <div className="markdown-body" style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '0.75rem', fontSize: '0.875rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}><ReactMarkdown>{script}</ReactMarkdown></div>}
+          {script && <div className="markdown-body" style={{ background: 'var(--bg-color)', border: '1px solid var(--panel-border)', padding: '1rem', borderRadius: '0.75rem', fontSize: '0.875rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}><ReactMarkdown>{script}</ReactMarkdown></div>}
         </div>
       </div>
     </div>
@@ -296,7 +302,7 @@ export const InterviewPrep: React.FC = () => {
               transition: 'var(--transition-fast)'
             }}
             onMouseOver={(e) => {
-              if (activeTab !== tab) e.currentTarget.style.color = 'white';
+              if (activeTab !== tab) e.currentTarget.style.color = 'var(--text-hover)';
             }}
             onMouseOut={(e) => {
               if (activeTab !== tab) e.currentTarget.style.color = 'var(--text-secondary)';

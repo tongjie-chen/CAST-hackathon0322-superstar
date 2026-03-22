@@ -64,5 +64,10 @@ Have sub sections of mock interview，resume，cover letter，salary negotiation
 - [ ] Training: pull a sample job description, let the user choose if it's an internship or career switch. If internship, pull a sample internship job from online, such as McKinsey's public case review for consulting, bank's research report, make an assignment for the user. Then prompt user to complete with a suggested timeline. After completion, give feedback
 
 # Issues
-- [ ] "We matched you with Product Management. Select a specialization to deeply tailor your Coach" does not have a choice there. Need to query result from AI and then pop up a list of choices
-- [ ] "Download to Calendar" is not working yet
+- [x] "We matched you with Product Management. Select a specialization to deeply tailor your Coach" does not have a choice there. Need to query result from AI and then pop up a list of choices
+- [x] "Download to Calendar" is not working yet
+- [x] Roadmap timeline need to be adjusted to the career choice like previous mocked with specific data
+- [x] Project simulator should have a third path of progressing to more senior role
+- [ ] Interactive Project Simulator's assignment need to be pulled from online with help from AI API, such as McKinsey's public case review for consulting, bank's research report, make an assignment for the user. Then prompt user to complete with a suggested timeline. After completion, give feedback
+- [ ] Roadmap timeline should have more specific data on what to study, pull the data from AI API
+- [ ] Assessment need to be adaptable, right now it only gives result of PM

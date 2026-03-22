@@ -1,4 +1,4 @@
-const { Builder, By, until } = require('selenium-webdriver');
+import { Builder, By, until } from 'selenium-webdriver';
 
 (async function runUiTests() {
   console.log("Initializing WebDriver...");
@@ -18,7 +18,7 @@ const { Builder, By, until } = require('selenium-webdriver');
 
     // 2. Click on 'Career Exploration' in LeftPanel Sidebar
     console.log("Testing LeftPanel Navigation -> Career Exploration...");
-    let explorationNav = await driver.wait(until.elementLocated(By.xpath("//span[contains(text(), 'Career Exploration')]/..")), 5000);
+    let explorationNav = await driver.wait(until.elementLocated(By.xpath("//li[contains(text(), 'Career Exploration')]")), 5000);
     await explorationNav.click();
 
     // 3. Verify 'Career Exploration AI' header appears signifying successful routing
@@ -36,7 +36,7 @@ const { Builder, By, until } = require('selenium-webdriver');
 
     // 5. Navigate to 'Interview Prep'
     console.log("Testing LeftPanel Navigation -> Interview Prep...");
-    let interviewNav = await driver.wait(until.elementLocated(By.xpath("//span[contains(text(), 'Interview Prep')]/..")), 5000);
+    let interviewNav = await driver.wait(until.elementLocated(By.xpath("//li[contains(text(), 'Interview Prep')]")), 5000);
     await interviewNav.click();
 
     // 6. Navigate to subtab 'Salary Negotiation'

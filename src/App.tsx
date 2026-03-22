@@ -10,6 +10,14 @@ import './index.css';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('Overview');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem('theme') as 'dark' | 'light') || 'dark');
+
+  React.useEffect(() => {
+    document.documentElement.className = theme;
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
   const renderContent = () => {
     switch(activeTab) {
@@ -24,6 +32,9 @@ const App: React.FC = () => {
 
   return (
     <div className="app-container">
+      <button className="theme-toggle" onClick={toggleTheme}>
+        {theme === 'dark' ? '☀️' : '🌙'}
+      </button>
       <LeftPanel activeTab={activeTab} onNavigate={setActiveTab} />
       {renderContent()}
     </div>

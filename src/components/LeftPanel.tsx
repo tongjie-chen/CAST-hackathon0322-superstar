@@ -46,7 +46,7 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({ activeTab, onNavigate }) =
                   onMouseOver={(e) => {
                     if (!isActive) {
                       e.currentTarget.style.color = 'var(--text-primary)';
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                      e.currentTarget.style.background = 'var(--card-hover-bg)';
                     }
                   }}
                   onMouseOut={(e) => {
